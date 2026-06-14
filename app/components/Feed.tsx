@@ -1,40 +1,39 @@
 "use client";
 
-import { useState } from "react";
-interface Post {
-  id: number;
-  author: string;
-  handle: string;
-  project: string;
-  time: string;
-  text: string;
-}
+import { type Post, defaultPosts } from "../lib/posts";
+import { supabase } from "../lib/supabase";
+import Link from "next/link";
+import { useState, useEffect } from "react";
+
+const PROJECT_COLORS = {
+  METDB: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  Voltraxx: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+  IFOS2: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+};
 
 export default function Feed() {
   const [activeTab, setActiveTab] = useState("All");
   const [newPost, setNewPost] = useState("");
   const [selectedProject, setSelectedProject] = useState("METDB");
-  const [posts, setPosts] = useState<Post[]>([
-    {
-      id: 3,
-      author: "Raj Kumar",
-      handle: "rajkumar",
-      project: "IFOS2",
-      time: "5h",
-      text: "Designed dashboard wireframes.",
-    },
-  ]);
+  const [posts, setPosts] = useState<Post[]>(defaultPosts);
+
+  useEffect(() => {
+    async function fetchPosts() {
+      const { data } = await supabase
+        .from("posts")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (data) setPosts(data);
+    }
+
+    fetchPosts();
+  }, []);
 
   const filteredPosts =
     activeTab === "All"
       ? posts
       : posts.filter((post) => post.project === activeTab);
-
-  const PROJECT_COLORS = {
-    METDB: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-    Voltraxx: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-    IFOS2: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  };
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -69,6 +68,18 @@ export default function Feed() {
           ))}
         </nav>
 
+        {/* Time Filter */}
+        <div className="border-b border-zinc-800 px-4 py-3 flex gap-2">
+          {["Today", "Yesterday", "Custom"].map((range) => (
+            <button
+              key={range}
+              className="text-xs px-3 py-1.5 rounded-full border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 transition-colors"
+            >
+              {range}
+            </button>
+          ))}
+        </div>
+
         {/* Compose Box */}
         <div className="border-b border-zinc-800 px-4 pt-4 pb-3">
           <div className="flex gap-3">
@@ -100,11 +111,12 @@ export default function Feed() {
                 </select>
                 <button
                   disabled={!newPost.trim()}
-                  onClick={() => {
+                  onClick={async () => {
                     if (!newPost.trim()) return;
-                    setPosts([
-                      {
-                        id: Date.now(),
+
+                    const { data, error } = await supabase
+                      .from("posts")
+                      .insert({
                         author: "Aiman Hazim",
                         handle: "aimanhazim",
                         project: selectedProject,
@@ -113,9 +125,14 @@ export default function Feed() {
                           minute: "2-digit",
                         }),
                         text: newPost,
-                      },
-                      ...posts,
-                    ]);
+                      })
+                      .select()
+                      .single();
+
+                    console.log("data:", data);
+                    console.log("error:", error);
+
+                    if (data) setPosts([data, ...posts]);
                     setNewPost("");
                   }}
                   className="bg-sky-500 text-white text-sm font-bold px-5 py-1.5 rounded-full disabled:opacity-40 disabled:cursor-not-allowed "
@@ -135,37 +152,38 @@ export default function Feed() {
             </p>
           )}
           {filteredPosts.map((post) => (
-            <article
-              key={post.id}
-              className="px-4 py-4 border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors cursor-pointer"
-            >
-              <div className="flex gap-3">
-                <div className="w-10 h-10 rounded-full bg-zinc-700 flex items-center justify-center text-sm font-bold shrink-0">
-                  {post.author
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-white text-sm">
-                      {post.author}
-                    </span>
-                    <span className="text-zinc-500 text-sm">
-                      @{post.handle}
-                    </span>
-                    <span className="text-zinc-600 text-sm">·</span>
-                    <span className="text-zinc-500 text-sm">{post.time}</span>
-                    <span
-                      className={`ml-auto text-xs px-2 py-0.5 rounded-full border ${PROJECT_COLORS[post.project]}`}
-                    >
-                      {post.project}
-                    </span>
+            <Link key={post.id} href={`/post/${post.id}`}>
+              <article className="px-4 py-4 border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors cursor-pointer">
+                <div className="flex gap-3">
+                  <div className="w-10 h-10 rounded-full bg-zinc-700 flex items-center justify-center text-sm font-bold shrink-0">
+                    {post.author
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")}
                   </div>
-                  <p className="mt-2 text-sm text-zinc-300">{post.text}</p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-white text-sm">
+                        {post.author}
+                      </span>
+                      <span className="text-zinc-500 text-sm">
+                        @{post.handle}
+                      </span>
+                      <span className="text-zinc-600 text-sm">·</span>
+                      <span className="text-zinc-500 text-sm">{post.time}</span>
+                      <span
+                        className={`ml-auto text-xs px-2 py-0.5 rounded-full border ${PROJECT_COLORS[post.project]}`}
+                      >
+                        {post.project}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-zinc-300 whitespace-pre-wrap">
+                      {post.text}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </article>
+              </article>
+            </Link>
           ))}
         </main>
       </div>
