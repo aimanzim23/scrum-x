@@ -1,9 +1,9 @@
 "use client";
 
-import { type Post, defaultPosts } from "../lib/posts";
+import { type Post } from "../lib/posts";
 import { supabase } from "../lib/supabase";
-import Link from "next/link";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 const PROJECT_COLORS = {
   METDB: "bg-blue-500/10 text-blue-400 border-blue-500/20",
@@ -15,7 +15,21 @@ export default function Feed() {
   const [activeTab, setActiveTab] = useState("All");
   const [newPost, setNewPost] = useState("");
   const [selectedProject, setSelectedProject] = useState("METDB");
-  const [posts, setPosts] = useState<Post[]>(defaultPosts);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const router = useRouter();
+  const [user, setUser] = useState<{ email: string } | null>(null);
+
+  useEffect(() => {
+    async function checkAuth() {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) {
+        router.push("/login");
+      } else {
+        setUser(data.user);
+      }
+    }
+    checkAuth();
+  }, []);
 
   useEffect(() => {
     async function fetchPosts() {
@@ -41,8 +55,19 @@ export default function Feed() {
       <header className="sticky top-0 z-10 border-b border-zinc-800 bg-black/80 backdrop-blur-md">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
           <span className="text-lg font-bold tracking-tight">ScrumX</span>
-          <div className="w-9 h-9 rounded-full bg-zinc-700 flex items-center justify-center text-sm font-bold">
-            AH
+          <div className="flex items-center gap-3">
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                router.push("/login");
+              }}
+              className="text-xs text-zinc-500 hover:text-white transition-colors"
+            >
+              Logout
+            </button>
+            <div className="w-9 h-9 rounded-full bg-zinc-700 flex items-center justify-center text-sm font-bold">
+              {user?.email?.[0].toUpperCase() ?? "?"}
+            </div>
           </div>
         </div>
       </header>
@@ -84,7 +109,7 @@ export default function Feed() {
         <div className="border-b border-zinc-800 px-4 pt-4 pb-3">
           <div className="flex gap-3">
             <div className="w-10 h-10 rounded-full bg-zinc-700 flex items-center justify-center text-sm font-bold shrink-0">
-              AH
+              {user?.email?.[0].toUpperCase() ?? "?"}
             </div>
             <div className="flex-1 space-y-3">
               <textarea
@@ -117,8 +142,9 @@ export default function Feed() {
                     const { data, error } = await supabase
                       .from("posts")
                       .insert({
-                        author: "Aiman Hazim",
-                        handle: "aimanhazim",
+                        author: user?.email ?? "unknown",
+                        handle: user?.email?.split("@")[0] ?? "unknown",
+                        phone: user?.user_metadata?.phone ?? null,
                         project: selectedProject,
                         time: new Date().toLocaleTimeString("en-US", {
                           hour: "2-digit",
@@ -152,38 +178,56 @@ export default function Feed() {
             </p>
           )}
           {filteredPosts.map((post) => (
-            <Link key={post.id} href={`/post/${post.id}`}>
-              <article className="px-4 py-4 border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors cursor-pointer">
-                <div className="flex gap-3">
-                  <div className="w-10 h-10 rounded-full bg-zinc-700 flex items-center justify-center text-sm font-bold shrink-0">
-                    {post.author
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-white text-sm">
-                        {post.author}
-                      </span>
-                      <span className="text-zinc-500 text-sm">
-                        @{post.handle}
-                      </span>
-                      <span className="text-zinc-600 text-sm">·</span>
-                      <span className="text-zinc-500 text-sm">{post.time}</span>
-                      <span
-                        className={`ml-auto text-xs px-2 py-0.5 rounded-full border ${PROJECT_COLORS[post.project]}`}
-                      >
-                        {post.project}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-sm text-zinc-300 whitespace-pre-wrap">
-                      {post.text}
-                    </p>
-                  </div>
+            <article
+              key={post.id}
+              onClick={() => router.push(`/post/${post.id}`)}
+              className="px-4 py-4 border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors cursor-pointer"
+            >
+              <div className="flex gap-3">
+                <div className="w-10 h-10 rounded-full bg-zinc-700 flex items-center justify-center text-sm font-bold shrink-0">
+                  {post.author
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")}
                 </div>
-              </article>
-            </Link>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-white text-sm">
+                      {post.author}
+                    </span>
+                    <span className="text-zinc-500 text-sm">
+                      @{post.handle}
+                    </span>
+                    <span className="text-zinc-600 text-sm">·</span>
+                    <span className="text-zinc-500 text-sm">{post.time}</span>
+                    <span
+                      className={`ml-auto text-xs px-2 py-0.5 rounded-full border ${PROJECT_COLORS[post.project]}`}
+                    >
+                      {post.project}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm text-zinc-300 whitespace-pre-wrap">
+                    {post.text}
+                  </p>
+                  {post.phone && (
+                    <a
+                      href={`https://wa.me/${post.phone}?text=${encodeURIComponent(
+                        `Regarding your scrum update:\n\n${post.text
+                          .split("\n")
+                          .map((line) => `> ${line}`)
+                          .join("\n")}`,
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-2 inline-flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
+                    >
+                      💬 WhatsApp
+                    </a>
+                  )}
+                </div>
+              </div>
+            </article>
           ))}
         </main>
       </div>

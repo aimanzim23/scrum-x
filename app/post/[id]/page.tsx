@@ -49,6 +49,21 @@ export default async function PostPage({
             <span className="mt-4 inline-block text-xs px-2 py-0.5 rounded-full border bg-blue-500/10 text-blue-400 border-blue-500/20">
               {post.project}
             </span>
+            {post.phone && (
+              <a
+                href={`https://wa.me/${post.phone}?text=${encodeURIComponent(
+                  `Regarding your scrum update:\n\n${post.text
+                    .split("\n")
+                    .map((line: string) => `> ${line}`)
+                    .join("\n")}`,
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
+              >
+                💬 WhatsApp
+              </a>
+            )}
           </div>
         </div>
       </div>

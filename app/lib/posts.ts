@@ -5,6 +5,7 @@ export interface Post {
   project: string;
   time: string;
   text: string;
+  phone: string | null;
 }
 
 export const defaultPosts: Post[] = [];
