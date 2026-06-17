@@ -201,7 +201,7 @@ export default function Feed() {
                     <span className="text-zinc-600 text-sm">·</span>
                     <span className="text-zinc-500 text-sm">{post.time}</span>
                     <span
-                      className={`ml-auto text-xs px-2 py-0.5 rounded-full border ${PROJECT_COLORS[post.project]}`}
+                      className={`ml-auto text-xs px-2 py-0.5 rounded-full border ${PROJECT_COLORS[post.project as keyof typeof PROJECT_COLORS]}`}
                     >
                       {post.project}
                     </span>
