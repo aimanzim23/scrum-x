@@ -17,7 +17,7 @@ export default function Feed() {
   const [selectedProject, setSelectedProject] = useState("METDB");
   const [posts, setPosts] = useState<Post[]>([]);
   const router = useRouter();
-  const [user, setUser] = useState<{ email: string } | null>(null);
+  const [user, setUser] = useState<{ email?: string; user_metadata?: { phone?: string } } | null>(null);
 
   useEffect(() => {
     async function checkAuth() {
