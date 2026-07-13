@@ -1,6 +1,18 @@
 import Link from "next/link";
 import { supabase } from "../../lib/supabase";
 import ShareButton from "../../components/ShareButton";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+
+const COLOR_PALETTE = [
+  "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  "bg-purple-500/10 text-purple-400 border-purple-500/20",
+  "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  "bg-orange-500/10 text-orange-400 border-orange-500/20",
+  "bg-pink-500/10 text-pink-400 border-pink-500/20",
+  "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
+  "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+];
 
 export default async function PostPage({
   params,
@@ -9,11 +21,10 @@ export default async function PostPage({
 }) {
   const { id } = await params;
 
-  const { data: post } = await supabase
-    .from("posts")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const [{ data: post }, { data: projectsData }] = await Promise.all([
+    supabase.from("posts").select("*").eq("id", id).single(),
+    supabase.from("projects").select("name").order("created_at", { ascending: true }),
+  ]);
 
   if (!post) {
     return (
@@ -23,22 +34,22 @@ export default async function PostPage({
     );
   }
 
+  const projects = projectsData?.map((p) => p.name) ?? [];
+  const projectIdx = projects.indexOf(post.project);
+  const projectColor = COLOR_PALETTE[projectIdx >= 0 ? projectIdx % COLOR_PALETTE.length : 0];
+
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="max-w-2xl mx-auto px-4 py-6">
-        <Link
-          href="/"
-          className="text-zinc-500 hover:text-white text-sm transition-colors"
-        >
+        <Link href="/" className="text-zinc-500 hover:text-white text-sm transition-colors">
           ← Back
         </Link>
         <div className="mt-6 flex gap-3">
-          <div className="w-10 h-10 rounded-full bg-zinc-700 flex items-center justify-center text-sm font-bold shrink-0">
-            {post.author
-              .split(" ")
-              .map((n: string) => n[0])
-              .join("")}
-          </div>
+          <Avatar size="lg">
+            <AvatarFallback className="bg-zinc-700 text-white font-bold">
+              {post.author.split(" ").map((n: string) => n[0]).join("")}
+            </AvatarFallback>
+          </Avatar>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between">
               <div>
@@ -47,12 +58,10 @@ export default async function PostPage({
               </div>
               <ShareButton phone={post.phone} text={post.text} postId={post.id} handle={post.handle} />
             </div>
-            <p className="mt-2 text-sm text-zinc-300 whitespace-pre-wrap">
-              {post.text}
-            </p>
-            <span className="mt-4 inline-block text-xs px-2 py-0.5 rounded-full border bg-blue-500/10 text-blue-400 border-blue-500/20">
+            <p className="mt-2 text-sm text-zinc-300 whitespace-pre-wrap">{post.text}</p>
+            <Badge variant="outline" className={`mt-4 ${projectColor}`}>
               {post.project}
-            </span>
+            </Badge>
             <p className="mt-4 text-xs text-zinc-600">
               {post.time} · {new Date(post.created_at).toLocaleDateString("en-GB")}
             </p>

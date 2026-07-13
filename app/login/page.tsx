@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -18,11 +20,8 @@ export default function LoginPage() {
     setError("");
     const result = await supabase.auth.signInWithPassword({ email, password });
     const error = result.error;
-    if (error) {
-      setError(error.message);
-    } else {
-      router.push("/");
-    }
+    if (error) setError(error.message);
+    else router.push("/");
     setLoading(false);
   }
 
@@ -35,11 +34,8 @@ export default function LoginPage() {
       options: { data: { phone } },
     });
     const error = result.error;
-    if (error) {
-      setError(error.message);
-    } else {
-      router.push("/");
-    }
+    if (error) setError(error.message);
+    else router.push("/");
     setLoading(false);
   }
 
@@ -54,61 +50,47 @@ export default function LoginPage() {
         </div>
 
         <div className="space-y-3">
-          <input
+          <Input
             type="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2.5 text-sm text-white placeholder-zinc-500 outline-none focus:border-sky-500 transition-colors"
+            className="h-10 bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 focus-visible:border-sky-500"
           />
-          <input
+          <Input
             type="password"
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2.5 text-sm text-white placeholder-zinc-500 outline-none focus:border-sky-500 transition-colors"
+            className="h-10 bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 focus-visible:border-sky-500"
           />
           {isSignUp && (
-            <input
+            <Input
               type="tel"
               placeholder="WhatsApp number (e.g. 60123456789)"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2.5 text-sm text-white placeholder-zinc-500 outline-none focus:border-sky-500 transition-colors"
+              className="h-10 bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 focus-visible:border-sky-500"
             />
           )}
           {error && <p className="text-red-400 text-xs">{error}</p>}
         </div>
 
         <div className="space-y-2">
-          {isSignUp ? (
-            <button
-              onClick={handleSignUp}
-              disabled={loading || !email || !password}
-              className="w-full bg-sky-500 text-white text-sm font-bold py-2.5 rounded-full disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {loading ? "..." : "Create account"}
-            </button>
-          ) : (
-            <button
-              onClick={handleLogin}
-              disabled={loading || !email || !password}
-              className="w-full bg-sky-500 text-white text-sm font-bold py-2.5 rounded-full disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {loading ? "..." : "Login"}
-            </button>
-          )}
-          <button
-            onClick={() => {
-              setIsSignUp(!isSignUp);
-              setError("");
-            }}
-            className="w-full text-zinc-500 text-sm py-2 hover:text-white transition-colors"
+          <Button
+            onClick={isSignUp ? handleSignUp : handleLogin}
+            disabled={loading || !email || !password}
+            className="w-full h-10 bg-sky-500 hover:bg-sky-400 text-white font-bold rounded-full"
           >
-            {isSignUp
-              ? "Already have an account? Login"
-              : "No account? Sign up"}
-          </button>
+            {loading ? "..." : isSignUp ? "Create account" : "Login"}
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => { setIsSignUp(!isSignUp); setError(""); }}
+            className="w-full text-zinc-500 hover:text-white"
+          >
+            {isSignUp ? "Already have an account? Login" : "No account? Sign up"}
+          </Button>
         </div>
       </div>
     </div>
