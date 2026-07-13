@@ -9,9 +9,10 @@ interface DatePickerProps {
   value: string;
   onChange: (date: string) => void;
   onClose: () => void;
+  align?: "left" | "right";
 }
 
-export default function DatePicker({ value, onChange, onClose }: DatePickerProps) {
+export default function DatePicker({ value, onChange, onClose, align = "left" }: DatePickerProps) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -88,7 +89,7 @@ export default function DatePicker({ value, onChange, onClose }: DatePickerProps
   return (
     <div
       ref={ref}
-      className="absolute top-full mt-2 left-0 z-30 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl p-5 w-72"
+      className={`absolute top-full mt-2 z-30 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl p-5 w-72 ${align === "right" ? "right-0" : "left-0"}`}
     >
       {/* Month nav */}
       <div className="flex items-center justify-between mb-5">
