@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import DatePicker from "./DatePicker";
 import ShareButton from "./ShareButton";
+import { randomPlaceholder } from "../lib/composePlaceholders";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -93,6 +94,7 @@ export default function Feed() {
   const [newProjectName, setNewProjectName] = useState("");
   const [addingProject, setAddingProject] = useState(false);
   const [composeExpanded, setComposeExpanded] = useState(false);
+  const [placeholder, setPlaceholder] = useState("");
   const dateStripRef = useRef<HTMLDivElement>(null);
 
   const router = useRouter();
@@ -105,6 +107,7 @@ export default function Feed() {
     if (dateStripRef.current) {
       dateStripRef.current.scrollLeft = dateStripRef.current.scrollWidth;
     }
+    setPlaceholder(randomPlaceholder());
   }, []);
 
   useEffect(() => {
@@ -284,7 +287,7 @@ export default function Feed() {
                 {user?.email?.[0].toUpperCase() ?? "?"}
               </AvatarFallback>
             </Avatar>
-            <span className="text-zinc-600 text-sm flex-1">What did you do today?</span>
+            <span className="text-zinc-600 text-sm flex-1">{placeholder}</span>
             <span className="bg-sky-500/20 text-sky-400 text-xs font-bold rounded-full px-3 py-1.5">
               Post
             </span>
@@ -302,7 +305,7 @@ export default function Feed() {
                   autoFocus
                   value={newPost}
                   onChange={(e) => setNewPost(e.target.value)}
-                  placeholder="What did you do today?"
+                  placeholder={placeholder}
                   maxLength={600}
                   className="border-none focus-visible:ring-0 bg-transparent dark:bg-transparent text-white placeholder:text-zinc-600 min-h-[80px] resize-none"
                 />
