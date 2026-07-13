@@ -6,12 +6,43 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import DatePicker from "./DatePicker";
 import ShareButton from "./ShareButton";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { CalendarIcon, ChevronDownIcon, LogOutIcon, PlusIcon } from "lucide-react";
 
-const PROJECT_COLORS = {
-  METDB: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  Voltraxx: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-  IFOS2: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-};
+const COLOR_PALETTE = [
+  "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  "bg-purple-500/10 text-purple-400 border-purple-500/20",
+  "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  "bg-orange-500/10 text-orange-400 border-orange-500/20",
+  "bg-pink-500/10 text-pink-400 border-pink-500/20",
+  "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
+  "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+];
+
+function getProjectColor(name: string, projects: string[]): string {
+  const idx = projects.indexOf(name);
+  return COLOR_PALETTE[idx >= 0 ? idx % COLOR_PALETTE.length : 0];
+}
 
 const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -22,7 +53,7 @@ function toDateStr(d: Date) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function buildWeekdayStrip(count = 7): Date[] {
+function buildWeekdayStrip(count = 10): Date[] {
   const result: Date[] = [];
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -48,21 +79,20 @@ export default function Feed() {
   const yesterdayStr = toDateStr(yesterday);
 
   const dateStrip = buildWeekdayStrip(10);
-  const mostRecentWeekday = lastWeekday();
-  const mostRecentStr = toDateStr(mostRecentWeekday);
+  const mostRecentStr = toDateStr(lastWeekday());
 
+  const [projects, setProjects] = useState<string[]>([]);
   const [activeProject, setActiveProject] = useState("All");
   const [newPost, setNewPost] = useState("");
-  const [selectedProject, setSelectedProject] = useState("METDB");
+  const [selectedProject, setSelectedProject] = useState("");
   const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(mostRecentStr);
   const [showCalendar, setShowCalendar] = useState(false);
-  const [showProjectMenu, setShowProjectMenu] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
-
-  const projectMenuRef = useRef<HTMLDivElement>(null);
-  const userMenuRef = useRef<HTMLDivElement>(null);
-  const calendarRef = useRef<HTMLDivElement>(null);
+  const [showAddProject, setShowAddProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [addingProject, setAddingProject] = useState(false);
+  const [composeExpanded, setComposeExpanded] = useState(false);
   const dateStripRef = useRef<HTMLDivElement>(null);
 
   const router = useRouter();
@@ -78,19 +108,6 @@ export default function Feed() {
   }, []);
 
   useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (projectMenuRef.current && !projectMenuRef.current.contains(e.target as Node))
-        setShowProjectMenu(false);
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node))
-        setShowUserMenu(false);
-      if (calendarRef.current && !calendarRef.current.contains(e.target as Node))
-        setShowCalendar(false);
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
     async function checkAuth() {
       const { data } = await supabase.auth.getUser();
       if (!data.user) router.push("/login");
@@ -100,15 +117,46 @@ export default function Feed() {
   }, []);
 
   useEffect(() => {
+    async function fetchProjects() {
+      const { data } = await supabase
+        .from("projects")
+        .select("name")
+        .order("created_at", { ascending: true });
+      if (data) {
+        const names = data.map((p) => p.name);
+        setProjects(names);
+        if (names.length > 0) setSelectedProject(names[0]);
+      }
+    }
+    fetchProjects();
+  }, []);
+
+  useEffect(() => {
     async function fetchPosts() {
       const { data } = await supabase
         .from("posts")
         .select("*")
         .order("created_at", { ascending: false });
       if (data) setPosts(data);
+      setLoading(false);
     }
     fetchPosts();
   }, []);
+
+  async function handleAddProject() {
+    const name = newProjectName.trim();
+    if (!name) return;
+    setAddingProject(true);
+    const { error } = await supabase.from("projects").insert({ name });
+    if (!error) {
+      const updated = [...projects, name];
+      setProjects(updated);
+      setSelectedProject(name);
+    }
+    setNewProjectName("");
+    setShowAddProject(false);
+    setAddingProject(false);
+  }
 
   const filteredPosts = posts
     .filter((post) => activeProject === "All" || post.project === activeProject)
@@ -118,14 +166,6 @@ export default function Feed() {
       return postDate === new Date(selectedDate + "T00:00:00").toDateString();
     });
 
-  function handleDatePickerChange(date: string) {
-    if (date) {
-      setSelectedDate(date);
-      // Scroll to the selected date in the strip if visible
-    }
-    setShowCalendar(false);
-  }
-
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
@@ -133,67 +173,52 @@ export default function Feed() {
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
           <span className="text-lg font-bold tracking-tight">ScrumX</span>
           <div className="flex items-center gap-1">
-            {/* Calendar icon */}
-            <div className="relative" ref={calendarRef}>
-              <button
-                onClick={() => setShowCalendar(!showCalendar)}
+            <Popover open={showCalendar} onOpenChange={setShowCalendar}>
+              <PopoverTrigger
                 className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
                   showCalendar
                     ? "bg-sky-500/20 text-sky-400"
                     : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
                 }`}
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </button>
-              {showCalendar && (
+                <CalendarIcon className="w-5 h-5" />
+              </PopoverTrigger>
+              <PopoverContent side="bottom" align="end" className="w-auto p-0 border-zinc-800">
                 <DatePicker
                   value={selectedDate}
-                  onChange={handleDatePickerChange}
-                  onClose={() => setShowCalendar(false)}
-                  align="right"
+                  onChange={(date) => {
+                    if (date) setSelectedDate(date);
+                    setShowCalendar(false);
+                  }}
                 />
-              )}
-            </div>
+              </PopoverContent>
+            </Popover>
 
-            {/* User avatar */}
-            <div className="relative" ref={userMenuRef}>
-              <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className="w-9 h-9 rounded-full bg-zinc-700 flex items-center justify-center text-sm font-bold hover:bg-zinc-600 transition-colors"
-              >
+            <DropdownMenu>
+              <DropdownMenuTrigger className="w-9 h-9 rounded-full bg-zinc-700 flex items-center justify-center text-sm font-bold hover:bg-zinc-600 transition-colors">
                 {user?.email?.[0].toUpperCase() ?? "?"}
-              </button>
-              {showUserMenu && (
-                <div className="absolute right-0 top-11 z-20 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl overflow-hidden w-40">
-                  <button
-                    onClick={async () => {
-                      await supabase.auth.signOut();
-                      router.push("/login");
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors"
-                  >
-                    <svg className="w-4 h-4 text-zinc-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                    </svg>
-                    Logout
-                  </button>
-                </div>
-              )}
-            </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="bottom" align="end">
+                <DropdownMenuItem
+                  onClick={async () => {
+                    await supabase.auth.signOut();
+                    router.push("/login");
+                  }}
+                >
+                  <LogOutIcon className="w-4 h-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
 
       <div className="max-w-2xl mx-auto">
-        {/* Date Strip — replaces project tabs */}
+        {/* Date Strip */}
         <div className="sticky top-14 z-20 bg-black/90 backdrop-blur-md border-b border-zinc-800">
-          <div
-            ref={dateStripRef}
-            className="flex overflow-x-auto scrollbar-hide"
-          >
-            {dateStrip.map((d, i) => {
+          <div ref={dateStripRef} className="flex overflow-x-auto scrollbar-hide">
+            {dateStrip.map((d) => {
               const str = toDateStr(d);
               const isSelected = str === selectedDate;
               const isToday = str === todayStr;
@@ -203,7 +228,6 @@ export default function Feed() {
                 : isYesterday
                 ? "Yesterday"
                 : `${DAY_ABBR[d.getDay()]} ${d.getDate()} ${d.toLocaleString("en-GB", { month: "short" })}`;
-
               return (
                 <button
                   key={str}
@@ -226,9 +250,9 @@ export default function Feed() {
           </div>
         </div>
 
-        {/* Project Chips — replaces time filter */}
-        <div className="border-b border-zinc-800 px-4 py-3 flex items-center gap-2">
-          {["All", "METDB", "Voltraxx", "IFOS2"].map((p) => (
+        {/* Project Chips */}
+        <div className="border-b border-zinc-800 px-4 py-3 flex items-center gap-2 flex-wrap">
+          {["All", ...projects].map((p) => (
             <button
               key={p}
               onClick={() => setActiveProject(p)}
@@ -241,150 +265,221 @@ export default function Feed() {
               {p}
             </button>
           ))}
+          <button
+            onClick={() => setShowAddProject(true)}
+            className="w-6 h-6 rounded-full border border-zinc-700 text-zinc-500 hover:border-zinc-400 hover:text-zinc-300 flex items-center justify-center transition-colors"
+          >
+            <PlusIcon className="w-3.5 h-3.5" />
+          </button>
         </div>
 
         {/* Compose Box */}
-        <div className="border-b border-zinc-800 px-4 pt-4 pb-3">
-          <div className="flex gap-3">
-            <div className="w-10 h-10 rounded-full bg-zinc-700 flex items-center justify-center text-sm font-bold shrink-0">
-              {user?.email?.[0].toUpperCase() ?? "?"}
-            </div>
-            <div className="flex-1 space-y-3">
-              <textarea
-                value={newPost}
-                onChange={(e) => setNewPost(e.target.value)}
-                placeholder="What did you do today?"
-                rows={6}
-                maxLength={600}
-                className="w-full bg-transparent text-white placeholder-zinc-600 text-sm outline-none resize-none pb-2"
-              />
-              <p
-                className={`text-xs text-right ${600 - newPost.length < 20 ? "text-red-400" : "text-zinc-600"}`}
-              >
-                {600 - newPost.length}
-              </p>
-              <div className="flex items-center justify-between pt-1">
-                <div className="relative" ref={projectMenuRef}>
-                  <button
-                    type="button"
-                    onClick={() => setShowProjectMenu(!showProjectMenu)}
-                    className="flex items-center gap-2 bg-zinc-900 border border-zinc-700 text-sky-400 text-sm font-medium rounded-full px-4 py-1.5 hover:border-zinc-500 transition-colors"
-                  >
-                    {selectedProject}
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  {showProjectMenu && (
-                    <div className="absolute left-0 bottom-10 z-20 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl overflow-hidden w-36">
-                      {["METDB", "Voltraxx", "IFOS2"].map((p) => (
-                        <button
+        {!composeExpanded ? (
+          <div
+            className="border-b border-zinc-800 px-4 py-3 flex items-center gap-3 cursor-text"
+            onClick={() => setComposeExpanded(true)}
+          >
+            <Avatar size="lg">
+              <AvatarFallback className="bg-zinc-700 text-white font-bold text-sm">
+                {user?.email?.[0].toUpperCase() ?? "?"}
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-zinc-600 text-sm flex-1">What did you do today?</span>
+            <span className="bg-sky-500/20 text-sky-400 text-xs font-bold rounded-full px-3 py-1.5">
+              Post
+            </span>
+          </div>
+        ) : (
+          <div className="border-b border-zinc-800 px-4 pt-4 pb-3">
+            <div className="flex gap-3">
+              <Avatar size="lg">
+                <AvatarFallback className="bg-zinc-700 text-white font-bold">
+                  {user?.email?.[0].toUpperCase() ?? "?"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 space-y-3">
+                <Textarea
+                  autoFocus
+                  value={newPost}
+                  onChange={(e) => setNewPost(e.target.value)}
+                  placeholder="What did you do today?"
+                  maxLength={600}
+                  className="border-none focus-visible:ring-0 bg-transparent dark:bg-transparent text-white placeholder:text-zinc-600 min-h-[80px] resize-none"
+                />
+                <p className={`text-xs text-right ${600 - newPost.length < 20 ? "text-red-400" : "text-zinc-600"}`}>
+                  {600 - newPost.length}
+                </p>
+                <div className="flex items-center justify-between pt-1">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger className="flex items-center gap-2 bg-zinc-900 border border-zinc-700 text-sky-400 text-sm font-medium rounded-full px-4 py-1.5 hover:border-zinc-500 transition-colors">
+                      {selectedProject || "Project"}
+                      <ChevronDownIcon className="w-3.5 h-3.5" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent side="top" align="start">
+                      {projects.map((p) => (
+                        <DropdownMenuItem
                           key={p}
-                          onClick={() => { setSelectedProject(p); setShowProjectMenu(false); }}
-                          className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                            selectedProject === p
-                              ? "text-sky-400 bg-sky-500/10"
-                              : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                          }`}
+                          onClick={() => setSelectedProject(p)}
+                          className={selectedProject === p ? "text-sky-400" : ""}
                         >
+                          <span
+                            className={`inline-block w-2 h-2 rounded-full mr-1 ${getProjectColor(p, projects).split(" ")[0].replace("/10", "").replace("bg-", "bg-")}`}
+                          />
                           {p}
-                        </button>
+                        </DropdownMenuItem>
                       ))}
-                    </div>
-                  )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => { setComposeExpanded(false); setNewPost(""); }}
+                      className="text-zinc-500 text-sm hover:text-zinc-300 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <Button
+                      disabled={!newPost.trim() || !selectedProject}
+                      onClick={async () => {
+                        if (!newPost.trim() || !selectedProject) return;
+                        const { data, error } = await supabase
+                          .from("posts")
+                          .insert({
+                            author: user?.email ?? "unknown",
+                            handle: user?.email?.split("@")[0] ?? "unknown",
+                            phone: user?.user_metadata?.phone ?? null,
+                            project: selectedProject,
+                            time: new Date().toLocaleTimeString("en-US", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            }),
+                            text: newPost,
+                          })
+                          .select()
+                          .single();
+                        console.log("data:", data);
+                        console.log("error:", error);
+                        if (data) setPosts([data, ...posts]);
+                        setNewPost("");
+                        setComposeExpanded(false);
+                      }}
+                      className="bg-sky-500 hover:bg-sky-400 text-white font-bold rounded-full px-5"
+                    >
+                      Post
+                    </Button>
+                  </div>
                 </div>
-                <button
-                  disabled={!newPost.trim()}
-                  onClick={async () => {
-                    if (!newPost.trim()) return;
-                    const { data, error } = await supabase
-                      .from("posts")
-                      .insert({
-                        author: user?.email ?? "unknown",
-                        handle: user?.email?.split("@")[0] ?? "unknown",
-                        phone: user?.user_metadata?.phone ?? null,
-                        project: selectedProject,
-                        time: new Date().toLocaleTimeString("en-US", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }),
-                        text: newPost,
-                      })
-                      .select()
-                      .single();
-
-                    console.log("data:", data);
-                    console.log("error:", error);
-
-                    if (data) setPosts([data, ...posts]);
-                    setNewPost("");
-                  }}
-                  className="bg-sky-500 text-white text-sm font-bold px-5 py-1.5 rounded-full disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  Post
-                </button>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Feed */}
         <main>
-          {filteredPosts.length === 0 && (
-            <p className="py-16 text-center text-zinc-600 text-sm">
-              No reports yet.
-            </p>
-          )}
-          {filteredPosts.map((post) => (
-            <article
-              key={post.id}
-              onClick={() => router.push(`/post/${post.id}`)}
-              className="px-4 py-4 border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors cursor-pointer"
-            >
-              <div className="flex gap-3">
-                <div className="w-10 h-10 rounded-full bg-zinc-700 flex items-center justify-center text-sm font-bold shrink-0">
-                  {post.author
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-white text-sm">{post.author}</span>
-                    <span className="text-zinc-500 text-sm">@{post.handle}</span>
-                    <span className="text-zinc-600 text-sm">·</span>
-                    <span className="text-zinc-500 text-sm">
-                      {(() => {
-                        const diffDays = Math.floor(
-                          (Date.now() - new Date(post.created_at).getTime()) / 86400000,
-                        );
-                        if (diffDays === 0) return post.time;
-                        if (diffDays <= 7) return `${diffDays}d`;
-                        return new Date(post.created_at).toLocaleDateString("en-GB");
-                      })()}
-                    </span>
-                    <span
-                      className={`ml-auto text-xs px-2 py-0.5 rounded-full border ${PROJECT_COLORS[post.project as keyof typeof PROJECT_COLORS]}`}
-                    >
-                      {post.project}
-                    </span>
-                    <ShareButton
-                      phone={post.phone}
-                      text={post.text}
-                      postId={post.id}
-                      handle={post.handle}
-                      onDelete={() => setPosts(posts.filter((p) => p.id !== post.id))}
-                    />
+          {loading ? (
+            Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="px-4 py-4 border-b border-zinc-800">
+                <div className="flex gap-3">
+                  <Skeleton className="size-10 rounded-full shrink-0 bg-zinc-800" />
+                  <div className="flex-1 space-y-2.5 pt-1">
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-3 w-28 bg-zinc-800" />
+                      <Skeleton className="h-3 w-16 bg-zinc-800" />
+                      <Skeleton className="ml-auto h-5 w-14 rounded-full bg-zinc-800" />
+                    </div>
+                    <Skeleton className="h-3 w-full bg-zinc-800" />
+                    <Skeleton className="h-3 w-4/5 bg-zinc-800" />
+                    <Skeleton className="h-3 w-2/3 bg-zinc-800" />
                   </div>
-                  <p className="mt-2 text-sm text-zinc-300 whitespace-pre-wrap">
-                    {post.text}
-                  </p>
                 </div>
               </div>
-            </article>
-          ))}
+            ))
+          ) : filteredPosts.length === 0 ? (
+            <p className="py-16 text-center text-zinc-600 text-sm">No reports yet.</p>
+          ) : (
+            filteredPosts.map((post) => (
+              <article
+                key={post.id}
+                onClick={() => router.push(`/post/${post.id}`)}
+                className="px-4 py-4 border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors cursor-pointer"
+              >
+                <div className="flex gap-3">
+                  <Avatar size="lg">
+                    <AvatarFallback className="bg-zinc-700 text-white font-bold">
+                      {post.author.split(" ").map((n: string) => n[0]).join("")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-white text-sm truncate max-w-[140px]">
+                        {post.handle.charAt(0).toUpperCase() + post.handle.slice(1)}
+                      </span>
+                      <span className="text-zinc-500 text-sm truncate max-w-[100px]">@{post.handle}</span>
+                      <span className="text-zinc-600 text-sm">·</span>
+                      <span className="text-zinc-500 text-sm">
+                        {(() => {
+                          const diffDays = Math.floor(
+                            (Date.now() - new Date(post.created_at).getTime()) / 86400000,
+                          );
+                          if (diffDays === 0) return post.time;
+                          if (diffDays <= 7) return `${diffDays}d`;
+                          return new Date(post.created_at).toLocaleDateString("en-GB");
+                        })()}
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className={`ml-auto ${getProjectColor(post.project, projects)}`}
+                      >
+                        {post.project}
+                      </Badge>
+                      <ShareButton
+                        phone={post.phone}
+                        text={post.text}
+                        postId={post.id}
+                        handle={post.handle}
+                        onDelete={() => setPosts(posts.filter((p) => p.id !== post.id))}
+                      />
+                    </div>
+                    <p className="mt-2 text-sm text-zinc-300 whitespace-pre-wrap break-words">{post.text}</p>
+                  </div>
+                </div>
+              </article>
+            ))
+          )}
         </main>
       </div>
+
+      {/* Add Project Dialog */}
+      <Dialog open={showAddProject} onOpenChange={setShowAddProject}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>New project</DialogTitle>
+          </DialogHeader>
+          <Input
+            placeholder="Project name"
+            value={newProjectName}
+            onChange={(e) => setNewProjectName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleAddProject()}
+            className="bg-zinc-900 border-zinc-700 text-white placeholder:text-zinc-500 focus-visible:border-sky-500 h-10"
+            autoFocus
+          />
+          <DialogFooter className="border-0 bg-transparent p-0 -mx-0 -mb-0 mt-1">
+            <Button
+              variant="outline"
+              onClick={() => { setShowAddProject(false); setNewProjectName(""); }}
+              className="border-zinc-700 text-zinc-300"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddProject}
+              disabled={!newProjectName.trim() || addingProject}
+              className="bg-sky-500 hover:bg-sky-400 text-white"
+            >
+              {addingProject ? "Adding..." : "Add project"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
