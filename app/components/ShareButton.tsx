@@ -85,9 +85,12 @@ export default function ShareButton({
   );
   const waUrl = `https://wa.me/${phone}?text=${waMessage}`;
 
+  const LIMIT = 1200;
+  const overLimit = editText.length > LIMIT;
+
   async function handleEdit() {
     const unchanged = editText.trim() === text && editProject === project;
-    if (!editText.trim() || unchanged) { setEditOpen(false); return; }
+    if (!editText.trim() || unchanged || overLimit) { setEditOpen(false); return; }
     setSaving(true);
     await supabase.from("posts").update({ text: editText, project: editProject }).eq("id", postId);
     setSaving(false);
@@ -157,10 +160,9 @@ export default function ShareButton({
             <DialogTitle>Edit post</DialogTitle>
           </DialogHeader>
           <textarea
-            className="w-full min-h-[200px] rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-zinc-200 p-3 resize-none focus:outline-none focus:ring-1 focus:ring-zinc-500"
+            className={`w-full min-h-[200px] rounded-lg bg-zinc-900 border text-sm text-zinc-200 p-3 resize-none focus:outline-none focus:ring-1 ${overLimit ? "border-red-500 focus:ring-red-500" : "border-zinc-700 focus:ring-zinc-500"}`}
             value={editText}
             onChange={(e) => setEditText(e.target.value)}
-            maxLength={1200}
           />
           <div className="flex items-center justify-between">
             <DropdownMenu>
@@ -177,11 +179,13 @@ export default function ShareButton({
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            <p className="text-xs text-zinc-500">{editText.length}/1200</p>
+            <p className={`text-xs ${overLimit ? "text-red-400 font-medium" : "text-zinc-500"}`}>
+              {editText.length}/1200{overLimit && " — too long"}
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
-            <Button onClick={handleEdit} disabled={saving || !editText.trim()}>
+            <Button onClick={handleEdit} disabled={saving || !editText.trim() || overLimit}>
               {saving ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>
