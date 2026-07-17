@@ -306,11 +306,11 @@ export default function Feed() {
                   value={newPost}
                   onChange={(e) => setNewPost(e.target.value)}
                   placeholder={placeholder}
-                  maxLength={600}
+                  maxLength={1200}
                   className="border-none focus-visible:ring-0 bg-transparent dark:bg-transparent text-white placeholder:text-zinc-600 min-h-[80px] resize-none"
                 />
-                <p className={`text-xs text-right ${600 - newPost.length < 20 ? "text-red-400" : "text-zinc-600"}`}>
-                  {600 - newPost.length}
+                <p className={`text-xs text-right ${1200 - newPost.length < 20 ? "text-red-400" : "text-zinc-600"}`}>
+                  {1200 - newPost.length}
                 </p>
                 <div className="flex items-center justify-between pt-1">
                   <DropdownMenu>
@@ -440,6 +440,7 @@ export default function Feed() {
                         postId={post.id}
                         handle={post.handle}
                         onDelete={() => setPosts(posts.filter((p) => p.id !== post.id))}
+                        onEdit={(newText) => setPosts(posts.map((p) => p.id === post.id ? { ...p, text: newText } : p))}
                       />
                     </div>
                     <p className="mt-2 text-sm text-zinc-300 whitespace-pre-wrap break-words">{post.text}</p>
