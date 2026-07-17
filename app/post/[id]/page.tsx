@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase";
 import ShareButton from "../../components/ShareButton";
@@ -13,6 +14,20 @@ const COLOR_PALETTE = [
   "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
   "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
 ];
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const { data: post } = await supabase.from("posts").select("*").eq("id", id).single();
+  if (!post) return { title: "Post not found" };
+  return {
+    title: `${post.handle} · ${post.project}`,
+    description: post.text.slice(0, 160),
+  };
+}
 
 export default async function PostPage({
   params,
