@@ -77,10 +77,8 @@ export default function ShareButton({
     checkOwner();
   }, [handle]);
 
-  const waMessage = encodeURIComponent(
-    `Regarding your scrum update:\n\n> ${text.replace(/\n+/g, " ")}`,
-  );
-  const waUrl = `https://wa.me/${phone}?text=${waMessage}`;
+  const postUrl = typeof window !== "undefined" ? `${window.location.origin}/post/${postId}` : `/post/${postId}`;
+  const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(`Regarding your scrum update:\n${postUrl}`)}`;
 
   const LIMIT = 1200;
   const overLimit = editText.length > LIMIT;
