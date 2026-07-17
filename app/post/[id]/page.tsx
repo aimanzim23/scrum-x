@@ -56,7 +56,7 @@ export default async function PostPage({
                 <p className="font-bold text-white">{post.author}</p>
                 <p className="text-zinc-500 text-sm">@{post.handle}</p>
               </div>
-              <ShareButton phone={post.phone} text={post.text} postId={post.id} handle={post.handle} />
+              <ShareButton phone={post.phone} text={post.text} project={post.project} projects={projects} postId={post.id} handle={post.handle} />
             </div>
             <p className="mt-2 text-sm text-zinc-300 whitespace-pre-wrap">{post.text}</p>
             <Badge variant="outline" className={`mt-4 ${projectColor}`}>
