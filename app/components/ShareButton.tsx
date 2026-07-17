@@ -20,7 +20,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { LinkIcon, Trash2Icon } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { LinkIcon, PencilIcon, Trash2Icon } from "lucide-react";
 
 function WhatsAppIcon({ className }: { className?: string }) {
   return (
@@ -36,6 +44,7 @@ interface PostMenuProps {
   postId: number;
   handle: string;
   onDelete?: () => void;
+  onEdit?: (newText: string) => void;
 }
 
 export default function ShareButton({
@@ -44,8 +53,12 @@ export default function ShareButton({
   postId,
   handle,
   onDelete,
+  onEdit,
 }: PostMenuProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editText, setEditText] = useState(text);
+  const [saving, setSaving] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const router = useRouter();
 
@@ -66,6 +79,15 @@ export default function ShareButton({
       .join("\n")}`,
   );
   const waUrl = `https://wa.me/${phone}?text=${waMessage}`;
+
+  async function handleEdit() {
+    if (!editText.trim() || editText === text) { setEditOpen(false); return; }
+    setSaving(true);
+    await supabase.from("posts").update({ text: editText }).eq("id", postId);
+    setSaving(false);
+    setEditOpen(false);
+    if (onEdit) onEdit(editText);
+  }
 
   async function handleDelete() {
     await supabase.from("posts").delete().eq("id", postId);
@@ -107,6 +129,10 @@ export default function ShareButton({
           {isOwner && (
             <>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => { setEditText(text); setEditOpen(true); }}>
+                <PencilIcon className="w-4 h-4" />
+                Edit post
+              </DropdownMenuItem>
               <DropdownMenuItem
                 variant="destructive"
                 onClick={() => setConfirmDelete(true)}
@@ -118,6 +144,27 @@ export default function ShareButton({
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Edit post</DialogTitle>
+          </DialogHeader>
+          <textarea
+            className="w-full min-h-[120px] rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-zinc-200 p-3 resize-none focus:outline-none focus:ring-1 focus:ring-zinc-500"
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            maxLength={1200}
+          />
+          <p className="text-xs text-zinc-500 text-right">{editText.length}/1200</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button onClick={handleEdit} disabled={saving || !editText.trim()}>
+              {saving ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
