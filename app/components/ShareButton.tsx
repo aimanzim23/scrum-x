@@ -78,10 +78,7 @@ export default function ShareButton({
   }, [handle]);
 
   const waMessage = encodeURIComponent(
-    `Hi! Regarding your scrum update:\n\n${text
-      .split("\n")
-      .map((line) => `> ${line}`)
-      .join("\n")}`,
+    `Regarding your scrum update:\n\n> ${text.replace(/\n+/g, " ")}`,
   );
   const waUrl = `https://wa.me/${phone}?text=${waMessage}`;
 
