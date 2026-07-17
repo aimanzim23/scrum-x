@@ -437,10 +437,12 @@ export default function Feed() {
                       <ShareButton
                         phone={post.phone}
                         text={post.text}
+                        project={post.project}
+                        projects={projects}
                         postId={post.id}
                         handle={post.handle}
                         onDelete={() => setPosts(posts.filter((p) => p.id !== post.id))}
-                        onEdit={(newText) => setPosts(posts.map((p) => p.id === post.id ? { ...p, text: newText } : p))}
+                        onEdit={(newText, newProject) => setPosts(posts.map((p) => p.id === post.id ? { ...p, text: newText, project: newProject } : p))}
                       />
                     </div>
                     <p className="mt-2 text-sm text-zinc-300 whitespace-pre-wrap break-words">{post.text}</p>

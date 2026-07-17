@@ -41,15 +41,19 @@ function WhatsAppIcon({ className }: { className?: string }) {
 interface PostMenuProps {
   phone: string | null;
   text: string;
+  project: string;
+  projects: string[];
   postId: number;
   handle: string;
   onDelete?: () => void;
-  onEdit?: (newText: string) => void;
+  onEdit?: (newText: string, newProject: string) => void;
 }
 
 export default function ShareButton({
   phone,
   text,
+  project,
+  projects,
   postId,
   handle,
   onDelete,
@@ -58,6 +62,7 @@ export default function ShareButton({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editText, setEditText] = useState(text);
+  const [editProject, setEditProject] = useState(project);
   const [saving, setSaving] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const router = useRouter();
@@ -81,12 +86,13 @@ export default function ShareButton({
   const waUrl = `https://wa.me/${phone}?text=${waMessage}`;
 
   async function handleEdit() {
-    if (!editText.trim() || editText === text) { setEditOpen(false); return; }
+    const unchanged = editText.trim() === text && editProject === project;
+    if (!editText.trim() || unchanged) { setEditOpen(false); return; }
     setSaving(true);
-    await supabase.from("posts").update({ text: editText }).eq("id", postId);
+    await supabase.from("posts").update({ text: editText, project: editProject }).eq("id", postId);
     setSaving(false);
     setEditOpen(false);
-    if (onEdit) onEdit(editText);
+    if (onEdit) onEdit(editText, editProject);
   }
 
   async function handleDelete() {
@@ -129,7 +135,7 @@ export default function ShareButton({
           {isOwner && (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => { setEditText(text); setEditOpen(true); }}>
+              <DropdownMenuItem onClick={() => { setEditText(text); setEditProject(project); setEditOpen(true); }}>
                 <PencilIcon className="w-4 h-4" />
                 Edit post
               </DropdownMenuItem>
@@ -146,17 +152,33 @@ export default function ShareButton({
       </DropdownMenu>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent showCloseButton={false}>
+        <DialogContent showCloseButton={false} className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Edit post</DialogTitle>
           </DialogHeader>
           <textarea
-            className="w-full min-h-[120px] rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-zinc-200 p-3 resize-none focus:outline-none focus:ring-1 focus:ring-zinc-500"
+            className="w-full min-h-[200px] rounded-lg bg-zinc-900 border border-zinc-700 text-sm text-zinc-200 p-3 resize-none focus:outline-none focus:ring-1 focus:ring-zinc-500"
             value={editText}
             onChange={(e) => setEditText(e.target.value)}
             maxLength={1200}
           />
-          <p className="text-xs text-zinc-500 text-right">{editText.length}/1200</p>
+          <div className="flex items-center justify-between">
+            <DropdownMenu>
+              <DropdownMenuTrigger className="inline-flex items-center gap-1 rounded-md border border-zinc-700 bg-transparent px-2.5 py-1 text-xs text-zinc-300 hover:bg-zinc-800 transition-colors">
+                {editProject || "Select project"}
+                <svg className="w-3 h-3 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {projects.map((p) => (
+                  <DropdownMenuItem key={p} onClick={() => setEditProject(p)}>
+                    {p}
+                    {p === editProject && <span className="ml-auto text-xs opacity-60">✓</span>}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <p className="text-xs text-zinc-500">{editText.length}/1200</p>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
             <Button onClick={handleEdit} disabled={saving || !editText.trim()}>
