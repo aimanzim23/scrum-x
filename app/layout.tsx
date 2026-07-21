@@ -8,7 +8,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Scrum-X",
+  title: "ScrumX",
   description: "Daily scrum report updates",
   icons: {
     icon: "/scrumx-icon.svg",
