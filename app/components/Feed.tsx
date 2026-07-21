@@ -174,7 +174,7 @@ export default function Feed() {
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-zinc-800 bg-black/80 backdrop-blur-md">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-          <span className="text-lg font-bold tracking-tight">ScrumX</span>
+          <img src="/scrumx-wordmark-light.svg" alt="ScrumX" className="h-7" />
           <div className="flex items-center gap-1">
             <Popover open={showCalendar} onOpenChange={setShowCalendar}>
               <PopoverTrigger

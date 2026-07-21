@@ -10,6 +10,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Scrum-X",
   description: "Daily scrum report updates",
+  icons: {
+    icon: "/scrumx-icon.svg",
+  },
 };
 
 export default function RootLayout({
