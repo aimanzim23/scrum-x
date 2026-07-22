@@ -43,7 +43,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-black text-white flex items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
-          <img src="/scrumx-wordmark-dark.svg" alt="ScrumX" className="h-8 mx-auto" />
+          <img src="/scrumx-wordmark-light.svg" alt="ScrumX" className="h-10 mx-auto" />
           <p className="text-zinc-500 text-sm mt-1">
             {isSignUp ? "Create your account" : "Sign in to your account"}
           </p>
