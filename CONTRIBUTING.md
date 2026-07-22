@@ -36,7 +36,22 @@ Thanks for contributing! Follow the steps below to get set up.
    | `NEXT_PUBLIC_SUPABASE_URL` | Supabase Dashboard → Project Settings → API |
    | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase Dashboard → Project Settings → API |
 
-4. **Run the dev server**
+4. **Run the database migration**
+
+   In your Supabase dashboard, open the **SQL Editor** and run the contents of:
+
+   ```
+   supabase/migrations/20240101000000_init.sql
+   ```
+
+   This creates the `posts` and `projects` tables and sets up Row Level Security policies.
+
+   > Alternatively, if you have the [Supabase CLI](https://supabase.com/docs/guides/cli) installed and a linked project, run:
+   > ```bash
+   > supabase db push
+   > ```
+
+5. **Run the dev server**
 
    ```bash
    npm run dev
