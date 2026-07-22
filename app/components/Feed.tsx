@@ -28,22 +28,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { CalendarIcon, ChevronDownIcon, LogOutIcon, PlusIcon } from "lucide-react";
-
-const COLOR_PALETTE = [
-  "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  "bg-purple-500/10 text-purple-400 border-purple-500/20",
-  "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  "bg-orange-500/10 text-orange-400 border-orange-500/20",
-  "bg-pink-500/10 text-pink-400 border-pink-500/20",
-  "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
-  "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
-];
-
-function getProjectColor(name: string, projects: string[]): string {
-  const idx = projects.indexOf(name);
-  return COLOR_PALETTE[idx >= 0 ? idx % COLOR_PALETTE.length : 0];
-}
+import { CalendarIcon, CheckIcon, ChevronDownIcon, LogOutIcon, PlusIcon, Share2Icon } from "lucide-react";
+import { getProjectColor } from "../lib/projectColor";
+import { toSlugDate } from "../lib/scrumDate";
 
 const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -95,6 +82,7 @@ export default function Feed() {
   const [addingProject, setAddingProject] = useState(false);
   const [composeExpanded, setComposeExpanded] = useState(false);
   const [placeholder, setPlaceholder] = useState("");
+  const [shareCopied, setShareCopied] = useState(false);
   const dateStripRef = useRef<HTMLDivElement>(null);
 
   const router = useRouter();
@@ -159,6 +147,13 @@ export default function Feed() {
     setNewProjectName("");
     setShowAddProject(false);
     setAddingProject(false);
+  }
+
+  async function handleShare() {
+    const url = `${window.location.origin}/scrums/${toSlugDate(selectedDate)}/${encodeURIComponent(activeProject)}`;
+    await navigator.clipboard.writeText(url);
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 2000);
   }
 
   const filteredPosts = posts
@@ -274,6 +269,24 @@ export default function Feed() {
           >
             <PlusIcon className="w-3.5 h-3.5" />
           </button>
+          {activeProject !== "All" && (
+            <button
+              onClick={handleShare}
+              title={`Copy a public link to the ${activeProject} report for this day`}
+              className={`ml-auto inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                shareCopied
+                  ? "border-emerald-500 bg-emerald-500/10 text-emerald-400"
+                  : "border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
+              }`}
+            >
+              {shareCopied ? (
+                <CheckIcon className="w-3.5 h-3.5" />
+              ) : (
+                <Share2Icon className="w-3.5 h-3.5" />
+              )}
+              {shareCopied ? "Link copied" : "Share"}
+            </button>
+          )}
         </div>
 
         {/* Compose Box */}

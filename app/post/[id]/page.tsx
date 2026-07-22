@@ -5,19 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase";
 import ShareButton from "../../components/ShareButton";
+import { getProjectColor } from "../../lib/projectColor";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-
-const COLOR_PALETTE = [
-  "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  "bg-purple-500/10 text-purple-400 border-purple-500/20",
-  "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  "bg-orange-500/10 text-orange-400 border-orange-500/20",
-  "bg-pink-500/10 text-pink-400 border-pink-500/20",
-  "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
-  "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
-];
 
 export default function PostPage() {
   const { id } = useParams<{ id: string }>();
@@ -54,8 +45,7 @@ export default function PostPage() {
     fetchData();
   }, [id]);
 
-  const projectIdx = post ? projects.indexOf(post.project) : -1;
-  const projectColor = COLOR_PALETTE[projectIdx >= 0 ? projectIdx % COLOR_PALETTE.length : 0];
+  const projectColor = post ? getProjectColor(post.project, projects) : "";
 
   return (
     <div className="min-h-screen bg-black text-white">
