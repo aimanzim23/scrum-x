@@ -328,7 +328,7 @@ export default function Feed() {
             </Avatar>
             <span className="text-zinc-600 text-sm flex-1">
               {drafts[selectedProject] ? (
-                <span className="text-amber-400/70">Draft saved — tap to continue editing</span>
+                <span className="text-zinc-400">Draft saved — tap to continue editing</span>
               ) : placeholder}
             </span>
             <span className="bg-sky-500/20 text-sky-400 text-xs font-bold rounded-full px-3 py-1.5">
@@ -378,16 +378,14 @@ export default function Feed() {
                   </DropdownMenu>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => { setComposeExpanded(false); setNewPost(""); }}
-                      className="text-zinc-500 text-sm hover:text-zinc-300 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <Button
-                      disabled={!newPost.trim() || !selectedProject || savingDraft}
-                      variant="outline"
+                      disabled={savingDraft}
                       onClick={async () => {
-                        if (!newPost.trim() || !selectedProject || !user?.email) return;
+                        if (!newPost.trim()) {
+                          setComposeExpanded(false);
+                          setNewPost("");
+                          return;
+                        }
+                        if (!selectedProject || !user?.email) return;
                         setSavingDraft(true);
                         const existing = drafts[selectedProject];
                         const payload = {
@@ -414,10 +412,10 @@ export default function Feed() {
                         setNewPost("");
                         setComposeExpanded(false);
                       }}
-                      className="border-zinc-700 text-zinc-300 hover:text-white hover:border-zinc-500 rounded-full px-4"
+                      className="text-zinc-500 text-sm hover:text-zinc-300 transition-colors disabled:opacity-50"
                     >
-                      {savingDraft ? "Saving…" : "Save Draft"}
-                    </Button>
+                      {savingDraft ? "Saving…" : newPost.trim() ? "Save Draft" : "Cancel"}
+                    </button>
                     <Button
                       disabled={!newPost.trim() || !selectedProject}
                       onClick={async () => {
