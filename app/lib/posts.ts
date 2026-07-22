@@ -6,6 +6,7 @@ export interface Post {
   time: string;
   text: string;
   phone: string | null;
+  is_draft: boolean;
   created_at: string;
 }
 

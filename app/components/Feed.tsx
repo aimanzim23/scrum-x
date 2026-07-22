@@ -83,6 +83,8 @@ export default function Feed() {
   const [composeExpanded, setComposeExpanded] = useState(false);
   const [placeholder, setPlaceholder] = useState("");
   const [shareCopied, setShareCopied] = useState(false);
+  const [drafts, setDrafts] = useState<Record<string, Post>>({});
+  const [savingDraft, setSavingDraft] = useState(false);
   const dateStripRef = useRef<HTMLDivElement>(null);
 
   const router = useRouter();
@@ -127,12 +129,36 @@ export default function Feed() {
       const { data } = await supabase
         .from("posts")
         .select("*")
+        .eq("is_draft", false)
         .order("created_at", { ascending: false });
       if (data) setPosts(data);
       setLoading(false);
     }
     fetchPosts();
   }, []);
+
+  useEffect(() => {
+    if (!user?.email) return;
+    async function fetchDrafts() {
+      const { data } = await supabase
+        .from("posts")
+        .select("*")
+        .eq("author", user!.email!)
+        .eq("is_draft", true);
+      if (data) {
+        const map: Record<string, Post> = {};
+        data.forEach((d) => { map[d.project] = d; });
+        setDrafts(map);
+      }
+    }
+    fetchDrafts();
+  }, [user]);
+
+  useEffect(() => {
+    if (!composeExpanded) return;
+    const draft = drafts[selectedProject];
+    setNewPost(draft?.text ?? "");
+  }, [composeExpanded, selectedProject]);
 
   async function handleAddProject() {
     const name = newProjectName.trim();
@@ -300,7 +326,11 @@ export default function Feed() {
                 {user?.email?.[0].toUpperCase() ?? "?"}
               </AvatarFallback>
             </Avatar>
-            <span className="text-zinc-600 text-sm flex-1">{placeholder}</span>
+            <span className="text-zinc-600 text-sm flex-1">
+              {drafts[selectedProject] ? (
+                <span className="text-amber-400/70">Draft saved — tap to continue editing</span>
+              ) : placeholder}
+            </span>
             <span className="bg-sky-500/20 text-sky-400 text-xs font-bold rounded-full px-3 py-1.5">
               Post
             </span>
@@ -354,27 +384,78 @@ export default function Feed() {
                       Cancel
                     </button>
                     <Button
+                      disabled={!newPost.trim() || !selectedProject || savingDraft}
+                      variant="outline"
+                      onClick={async () => {
+                        if (!newPost.trim() || !selectedProject || !user?.email) return;
+                        setSavingDraft(true);
+                        const existing = drafts[selectedProject];
+                        const payload = {
+                          text: newPost,
+                          project: selectedProject,
+                          time: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+                        };
+                        let saved: Post | null = null;
+                        if (existing) {
+                          const { data } = await supabase.from("posts").update(payload).eq("id", existing.id).select().single();
+                          saved = data;
+                        } else {
+                          const { data } = await supabase.from("posts").insert({
+                            ...payload,
+                            author: user.email,
+                            handle: user.email.split("@")[0],
+                            phone: user.user_metadata?.phone ?? null,
+                            is_draft: true,
+                          }).select().single();
+                          saved = data;
+                        }
+                        if (saved) setDrafts({ ...drafts, [selectedProject]: saved });
+                        setSavingDraft(false);
+                        setNewPost("");
+                        setComposeExpanded(false);
+                      }}
+                      className="border-zinc-700 text-zinc-300 hover:text-white hover:border-zinc-500 rounded-full px-4"
+                    >
+                      {savingDraft ? "Saving…" : "Save Draft"}
+                    </Button>
+                    <Button
                       disabled={!newPost.trim() || !selectedProject}
                       onClick={async () => {
-                        if (!newPost.trim() || !selectedProject) return;
-                        const { data, error } = await supabase
-                          .from("posts")
-                          .insert({
-                            author: user?.email ?? "unknown",
-                            handle: user?.email?.split("@")[0] ?? "unknown",
-                            phone: user?.user_metadata?.phone ?? null,
-                            project: selectedProject,
-                            time: new Date().toLocaleTimeString("en-US", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            }),
-                            text: newPost,
-                          })
-                          .select()
-                          .single();
-                        console.log("data:", data);
-                        console.log("error:", error);
-                        if (data) setPosts([data, ...posts]);
+                        if (!newPost.trim() || !selectedProject || !user?.email) return;
+                        const existing = drafts[selectedProject];
+                        const now = new Date();
+                        const time = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+                        let posted: Post | null = null;
+                        if (existing) {
+                          const { data } = await supabase
+                            .from("posts")
+                            .update({ text: newPost, project: selectedProject, is_draft: false, time, created_at: now.toISOString() })
+                            .eq("id", existing.id)
+                            .select()
+                            .single();
+                          posted = data;
+                          if (posted) {
+                            const newDrafts = { ...drafts };
+                            delete newDrafts[selectedProject];
+                            setDrafts(newDrafts);
+                          }
+                        } else {
+                          const { data } = await supabase
+                            .from("posts")
+                            .insert({
+                              author: user.email,
+                              handle: user.email.split("@")[0],
+                              phone: user.user_metadata?.phone ?? null,
+                              project: selectedProject,
+                              time,
+                              text: newPost,
+                              is_draft: false,
+                            })
+                            .select()
+                            .single();
+                          posted = data;
+                        }
+                        if (posted) setPosts([posted, ...posts]);
                         setNewPost("");
                         setComposeExpanded(false);
                       }}
