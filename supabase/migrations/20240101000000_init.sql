@@ -19,7 +19,7 @@ create table if not exists public.posts (
 
 -- Enable Row Level Security
 alter table public.projects enable row level security;
-alter table public.posts    enable row level security;
+alter table public.posts    disable row level security;
 
 -- Projects: anyone authenticated can read; anyone authenticated can insert
 create policy "Authenticated users can read projects"
