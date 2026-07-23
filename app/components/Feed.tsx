@@ -28,6 +28,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { CalendarIcon, CheckIcon, ChevronDownIcon, LogOutIcon, PlusIcon, Share2Icon } from "lucide-react";
 import { getProjectColor } from "../lib/projectColor";
 import { toSlugDate } from "../lib/scrumDate";
@@ -85,6 +95,7 @@ export default function Feed() {
   const [shareCopied, setShareCopied] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, Post>>({});
   const [savingDraft, setSavingDraft] = useState(false);
+  const [showDeleteDraftDialog, setShowDeleteDraftDialog] = useState(false);
   const dateStripRef = useRef<HTMLDivElement>(null);
 
   const router = useRouter();
@@ -158,7 +169,8 @@ export default function Feed() {
     if (!composeExpanded) return;
     const draft = drafts[selectedProject];
     setNewPost(draft?.text ?? "");
-  }, [composeExpanded, selectedProject]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [composeExpanded]);
 
   async function handleAddProject() {
     const name = newProjectName.trim();
@@ -173,6 +185,47 @@ export default function Feed() {
     setNewProjectName("");
     setShowAddProject(false);
     setAddingProject(false);
+  }
+
+  async function handleSaveDraft() {
+    if (!newPost.trim() || !selectedProject || !user?.email) return;
+    setSavingDraft(true);
+    const existing = drafts[selectedProject];
+    const payload = {
+      text: newPost,
+      project: selectedProject,
+      time: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+    };
+    let saved: Post | null = null;
+    if (existing) {
+      const { data } = await supabase.from("posts").update(payload).eq("id", existing.id).select().single();
+      saved = data;
+    } else {
+      const { data } = await supabase.from("posts").insert({
+        ...payload,
+        author: user.email,
+        handle: user.email.split("@")[0],
+        phone: user.user_metadata?.phone ?? null,
+        is_draft: true,
+      }).select().single();
+      saved = data;
+    }
+    if (saved) setDrafts({ ...drafts, [selectedProject]: saved });
+    setSavingDraft(false);
+    setNewPost("");
+    setComposeExpanded(false);
+  }
+
+  async function handleDeleteDraft() {
+    const draft = drafts[selectedProject];
+    if (!draft) return;
+    await supabase.from("posts").delete().eq("id", draft.id);
+    const newDrafts = { ...drafts };
+    delete newDrafts[selectedProject];
+    setDrafts(newDrafts);
+    setNewPost("");
+    setComposeExpanded(false);
+    setShowDeleteDraftDialog(false);
   }
 
   async function handleShare() {
@@ -331,12 +384,32 @@ export default function Feed() {
                 <span className="text-zinc-400">Draft saved — tap to continue editing</span>
               ) : placeholder}
             </span>
+            {drafts[selectedProject] && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowDeleteDraftDialog(true); }}
+                className="text-zinc-500 text-xs hover:text-red-400 transition-colors"
+              >
+                Delete draft
+              </button>
+            )}
             <span className="bg-sky-500/20 text-sky-400 text-xs font-bold rounded-full px-3 py-1.5">
               Post
             </span>
           </div>
         ) : (
-          <div className="border-b border-zinc-800 px-4 pt-4 pb-3">
+          <div className="border-b border-zinc-800 px-4 pt-3 pb-3">
+            <div className="flex justify-end mb-2">
+              {newPost.trim() && (
+                <button
+                  disabled={savingDraft}
+                  onClick={handleSaveDraft}
+                  className="text-sky-400 text-sm font-medium hover:text-sky-300 transition-colors disabled:opacity-50"
+                >
+                  {savingDraft ? "Saving…" : "Save draft"}
+                </button>
+              )}
+            </div>
+            {/* Compose body */}
             <div className="flex gap-3">
               <Avatar size="lg">
                 <AvatarFallback className="bg-zinc-700 text-white font-bold">
@@ -352,10 +425,11 @@ export default function Feed() {
                   maxLength={1200}
                   className="border-none focus-visible:ring-0 bg-transparent dark:bg-transparent text-white placeholder:text-zinc-600 min-h-[80px] resize-none"
                 />
-                <p className={`text-xs text-right ${1200 - newPost.length < 20 ? "text-red-400" : "text-zinc-600"}`}>
-                  {1200 - newPost.length}
-                </p>
-                <div className="flex items-center justify-between pt-1">
+
+                {/* Bottom toolbar */}
+                <div className="flex items-center justify-between pt-1 border-t border-zinc-800/60">
+                  {/* Left: project dropdown + char count */}
+                  <div className="flex items-center gap-3">
                   <DropdownMenu>
                     <DropdownMenuTrigger className="flex items-center gap-2 bg-zinc-900 border border-zinc-700 text-sky-400 text-sm font-medium rounded-full px-4 py-1.5 hover:border-zinc-500 transition-colors">
                       {selectedProject || "Project"}
@@ -376,45 +450,18 @@ export default function Feed() {
                       ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <div className="flex items-center gap-2">
+                  <span className={`text-xs tabular-nums ${1200 - newPost.length < 20 ? "text-red-400" : "text-zinc-500"}`}>
+                    {1200 - newPost.length}
+                  </span>
+                  </div>
+
+                  {/* Right: cancel + Post */}
+                  <div className="flex items-center gap-3">
                     <button
-                      disabled={savingDraft}
-                      onClick={async () => {
-                        if (!newPost.trim()) {
-                          setComposeExpanded(false);
-                          setNewPost("");
-                          return;
-                        }
-                        if (!selectedProject || !user?.email) return;
-                        setSavingDraft(true);
-                        const existing = drafts[selectedProject];
-                        const payload = {
-                          text: newPost,
-                          project: selectedProject,
-                          time: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
-                        };
-                        let saved: Post | null = null;
-                        if (existing) {
-                          const { data } = await supabase.from("posts").update(payload).eq("id", existing.id).select().single();
-                          saved = data;
-                        } else {
-                          const { data } = await supabase.from("posts").insert({
-                            ...payload,
-                            author: user.email,
-                            handle: user.email.split("@")[0],
-                            phone: user.user_metadata?.phone ?? null,
-                            is_draft: true,
-                          }).select().single();
-                          saved = data;
-                        }
-                        if (saved) setDrafts({ ...drafts, [selectedProject]: saved });
-                        setSavingDraft(false);
-                        setNewPost("");
-                        setComposeExpanded(false);
-                      }}
-                      className="text-zinc-500 text-sm hover:text-zinc-300 transition-colors disabled:opacity-50"
+                      onClick={() => { setComposeExpanded(false); setNewPost(""); }}
+                      className="text-zinc-500 text-sm hover:text-zinc-300 transition-colors"
                     >
-                      {savingDraft ? "Saving…" : newPost.trim() ? "Save Draft" : "Cancel"}
+                      Cancel
                     </button>
                     <Button
                       disabled={!newPost.trim() || !selectedProject}
@@ -545,6 +592,27 @@ export default function Feed() {
           )}
         </main>
       </div>
+
+      {/* Delete Draft Dialog */}
+      <AlertDialog open={showDeleteDraftDialog} onOpenChange={setShowDeleteDraftDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete draft?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete your saved draft. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteDraft}
+              className="bg-red-500 hover:bg-red-400 text-white"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Add Project Dialog */}
       <Dialog open={showAddProject} onOpenChange={setShowAddProject}>
