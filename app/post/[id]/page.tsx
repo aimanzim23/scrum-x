@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase";
@@ -90,7 +91,7 @@ export default function PostPage() {
                   onEdit={(newText, newProject) => setPost({ ...post, text: newText, project: newProject })}
                 />
               </div>
-              <p className="mt-2 text-sm text-zinc-300 whitespace-pre-wrap">{post.text}</p>
+              <div className="mt-2 text-sm text-zinc-300 prose prose-invert prose-sm max-w-none"><ReactMarkdown>{post.text}</ReactMarkdown></div>
               <Badge variant="outline" className={`mt-4 ${projectColor}`}>
                 {post.project}
               </Badge>

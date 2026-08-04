@@ -1,6 +1,7 @@
 "use client";
 
 import { type Post } from "../lib/posts";
+import ReactMarkdown from "react-markdown";
 import { supabase } from "../lib/supabase";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
@@ -584,7 +585,7 @@ export default function Feed() {
                         onEdit={(newText, newProject) => setPosts(posts.map((p) => p.id === post.id ? { ...p, text: newText, project: newProject } : p))}
                       />
                     </div>
-                    <p className="mt-2 text-sm text-zinc-300 whitespace-pre-wrap break-words">{post.text}</p>
+                    <div className="mt-2 text-sm text-zinc-300 prose prose-invert prose-sm max-w-none break-words"><ReactMarkdown>{post.text}</ReactMarkdown></div>
                   </div>
                 </div>
               </article>
