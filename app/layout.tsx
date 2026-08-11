@@ -8,10 +8,23 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://scrum-x.vercel.app"),
   title: "ScrumX",
   description: "Daily scrum report updates",
   icons: {
     icon: "/scrumx-icon.svg",
+  },
+  openGraph: {
+    title: "ScrumX",
+    description: "Daily scrum report updates",
+    url: "/",
+    siteName: "ScrumX",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ScrumX",
+    description: "Daily scrum report updates",
   },
 };
 
