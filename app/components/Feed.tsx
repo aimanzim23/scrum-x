@@ -576,7 +576,6 @@ export default function Feed() {
                       >
                         {post.handle.charAt(0).toUpperCase() + post.handle.slice(1)}
                       </Link>
-                      <span className="text-zinc-500 text-sm truncate max-w-[100px]">@{post.handle}</span>
                       <span className="text-zinc-600 text-sm">·</span>
                       <span className="text-zinc-500 text-sm">
                         {(() => {
