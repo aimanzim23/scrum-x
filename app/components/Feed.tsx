@@ -1,7 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { type Post } from "../lib/posts";
+import { getAvatarConfigs, getAvatarConfig } from "../lib/avatar";
+import type { AvatarConfig } from "../lib/avatar";
 import ReactMarkdown from "react-markdown";
+import UserAvatar from "./UserAvatar";
 import { supabase } from "../lib/supabase";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
@@ -9,6 +13,7 @@ import DatePicker from "./DatePicker";
 import ShareButton from "./ShareButton";
 import { randomPlaceholder } from "../lib/composePlaceholders";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import BoringAvatar from "boring-avatars";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,7 +44,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { CalendarIcon, CheckIcon, ChevronDownIcon, LogOutIcon, PlusIcon, Share2Icon } from "lucide-react";
+import { CalendarIcon, CheckIcon, ChevronDownIcon, LogOutIcon, PlusIcon, Share2Icon, UserIcon } from "lucide-react";
 import { getProjectColor } from "../lib/projectColor";
 import { toSlugDate } from "../lib/scrumDate";
 
@@ -85,6 +90,8 @@ export default function Feed() {
   const [newPost, setNewPost] = useState("");
   const [selectedProject, setSelectedProject] = useState("");
   const [posts, setPosts] = useState<Post[]>([]);
+  const [avatarConfigs, setAvatarConfigs] = useState<Record<string, AvatarConfig>>({});
+  const [myAvatarConfig, setMyAvatarConfig] = useState<AvatarConfig>({ variant: "beam", palette: "sky" });
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(mostRecentStr);
   const [showCalendar, setShowCalendar] = useState(false);
@@ -115,8 +122,10 @@ export default function Feed() {
   useEffect(() => {
     async function checkAuth() {
       const { data } = await supabase.auth.getUser();
-      if (!data.user) router.push("/login");
-      else setUser(data.user);
+      if (!data.user) { router.push("/login"); return; }
+      setUser(data.user);
+      const handle = data.user.email?.split("@")[0];
+      if (handle) getAvatarConfig(handle).then(setMyAvatarConfig);
     }
     checkAuth();
   }, []);
@@ -143,7 +152,11 @@ export default function Feed() {
         .select("*")
         .eq("is_draft", false)
         .order("created_at", { ascending: false });
-      if (data) setPosts(data);
+      if (data) {
+        setPosts(data);
+        const handles = [...new Set(data.map((p: Post) => p.handle))];
+        getAvatarConfigs(handles).then(setAvatarConfigs);
+      }
       setLoading(false);
     }
     fetchPosts();
@@ -273,10 +286,15 @@ export default function Feed() {
             </Popover>
 
             <DropdownMenu>
-              <DropdownMenuTrigger className="w-9 h-9 rounded-full bg-zinc-700 flex items-center justify-center text-sm font-bold hover:bg-zinc-600 transition-colors">
-                {user?.email?.[0].toUpperCase() ?? "?"}
+              <DropdownMenuTrigger className="rounded-full overflow-hidden hover:opacity-80 transition-opacity">
+                <UserAvatar handle={user?.email?.split("@")[0] ?? "?"} config={myAvatarConfig} size={36} />
               </DropdownMenuTrigger>
               <DropdownMenuContent side="bottom" align="end">
+                <DropdownMenuItem onClick={() => router.push(`/user/${user?.email?.split("@")[0]}`)}>
+                  <UserIcon className="w-4 h-4" />
+                  View profile
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={async () => {
                     await supabase.auth.signOut();
@@ -375,11 +393,7 @@ export default function Feed() {
             className="border-b border-zinc-800 px-4 py-3 flex items-center gap-3 cursor-text"
             onClick={() => setComposeExpanded(true)}
           >
-            <Avatar size="lg">
-              <AvatarFallback className="bg-zinc-700 text-white font-bold text-sm">
-                {user?.email?.[0].toUpperCase() ?? "?"}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar handle={user?.email?.split("@")[0] ?? "?"} config={myAvatarConfig} size={40} />
             <span className="text-zinc-600 text-sm flex-1">
               {drafts[selectedProject] ? (
                 <span className="text-zinc-400">Draft saved — tap to continue editing</span>
@@ -412,11 +426,7 @@ export default function Feed() {
             </div>
             {/* Compose body */}
             <div className="flex gap-3">
-              <Avatar size="lg">
-                <AvatarFallback className="bg-zinc-700 text-white font-bold">
-                  {user?.email?.[0].toUpperCase() ?? "?"}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar handle={user?.email?.split("@")[0] ?? "?"} config={myAvatarConfig} size={40} />
               <div className="flex-1 space-y-3">
                 <Textarea
                   autoFocus
@@ -546,16 +556,26 @@ export default function Feed() {
                 className="px-4 py-4 border-b border-zinc-800 hover:bg-zinc-900/50 transition-colors cursor-pointer"
               >
                 <div className="flex gap-3">
-                  <Avatar size="lg">
-                    <AvatarFallback className="bg-zinc-700 text-white font-bold">
-                      {post.author.split(" ").map((n: string) => n[0]).join("")}
-                    </AvatarFallback>
-                  </Avatar>
+                  <Link
+                    href={`/user/${post.handle}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="contents"
+                  >
+                    <UserAvatar
+                      handle={post.handle}
+                      config={avatarConfigs[post.handle] ?? { variant: "beam", palette: "sky" }}
+                      size={40}
+                    />
+                  </Link>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-white text-sm truncate max-w-[140px]">
+                      <Link
+                        href={`/user/${post.handle}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="font-bold text-white text-sm truncate max-w-[140px] hover:underline"
+                      >
                         {post.handle.charAt(0).toUpperCase() + post.handle.slice(1)}
-                      </span>
+                      </Link>
                       <span className="text-zinc-500 text-sm truncate max-w-[100px]">@{post.handle}</span>
                       <span className="text-zinc-600 text-sm">·</span>
                       <span className="text-zinc-500 text-sm">

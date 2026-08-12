@@ -7,7 +7,9 @@ import Link from "next/link";
 import { supabase } from "../../lib/supabase";
 import ShareButton from "../../components/ShareButton";
 import { getProjectColor } from "../../lib/projectColor";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { getAvatarConfig } from "../../lib/avatar";
+import type { AvatarConfig } from "../../lib/avatar";
+import UserAvatar from "../../components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -26,6 +28,7 @@ export default function PostPage() {
     created_at: string;
   } | null>(null);
   const [projects, setProjects] = useState<string[]>([]);
+  const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>({ variant: "beam", palette: "sky" });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -41,6 +44,8 @@ export default function PostPage() {
       if (!postData) { setLoading(false); return; }
       setPost(postData);
       setProjects(projectsData?.map((p) => p.name) ?? []);
+      const config = await getAvatarConfig(postData.handle);
+      setAvatarConfig(config);
       setLoading(false);
     }
     fetchData();
@@ -69,11 +74,7 @@ export default function PostPage() {
           <p className="mt-16 text-center text-zinc-500">Post not found.</p>
         ) : (
           <div className="mt-6 flex gap-3">
-            <Avatar size="lg">
-              <AvatarFallback className="bg-zinc-700 text-white font-bold">
-                {post.author.split(" ").map((n: string) => n[0]).join("")}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar handle={post.handle} config={avatarConfig} size={40} />
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between">
                 <div>
